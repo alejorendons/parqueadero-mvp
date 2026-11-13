@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+const base = 'http://127.0.0.1:5173';
+const anonymous = await fetch(`${base}/api/parking`);
+assert.equal(anonymous.status, 401, 'La API debe exigir sesión');
+const forged = await fetch(`${base}/api/parking`, {headers: {'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'forged@example.test'}});
+assert.equal(forged.status, 401, 'La simulación local debe quitar identidades enviadas por el cliente');
+const login = await fetch(`${base}/signin-with-chatgpt?return_to=/`, {redirect:'manual'});
+const cookie = login.headers.get('set-cookie')?.split(';')[0];
+assert.ok(cookie, 'Se necesita el inicio de sesión local del entorno dev');
+const state = await fetch(`${base}/api/parking`, {headers:{cookie}});
+assert.equal(state.status, 200);
+assert.equal(state.headers.get('cache-control'), 'no-store');
+const missingHeader = await fetch(`${base}/api/parking`, {method:'POST',headers:{cookie,'content-type':'application/json'},body:JSON.stringify({action:'unknown'})});
+assert.equal(missingHeader.status,403);
+const foreignOrigin = await fetch(`${base}/api/parking`, {method:'POST',headers:{cookie,'content-type':'application/json','x-parking-request':'1',origin:'https://other.example.test'},body:JSON.stringify({action:'unknown'})});
+assert.equal(foreignOrigin.status,403);
+console.log('HTTP local: sesión, identidad, caché y protección de solicitudes verificados. Sin cambios en datos.');
