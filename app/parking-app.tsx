@@ -118,6 +118,7 @@ function Modal({
       <div className="modal-head">
         <h2>{title}</h2>
         <button
+          type="button"
           className="icon-button"
           aria-label="Cerrar ventana"
           disabled={busy}
@@ -195,27 +196,29 @@ function EntryForm({
       }}
       className="entry-form"
     >
-      <label>Tipo de vehículo</label>
-      <div className="vehicle-toggle">
-        <button
-          type="button"
-          className={type === 'car' ? 'selected' : ''}
-          onClick={() => setType('car')}
-          aria-pressed={type === 'car'}
-        >
-          <Car size={22} />
-          Carro
-        </button>
-        <button
-          type="button"
-          className={type === 'motorcycle' ? 'selected' : ''}
-          onClick={() => setType('motorcycle')}
-          aria-pressed={type === 'motorcycle'}
-        >
-          <Bike size={22} />
-          Moto
-        </button>
-      </div>
+      <fieldset className="vehicle-fieldset">
+        <legend>Tipo de vehículo</legend>
+        <div className="vehicle-toggle">
+          <button
+            type="button"
+            className={type === 'car' ? 'selected' : ''}
+            onClick={() => setType('car')}
+            aria-pressed={type === 'car'}
+          >
+            <Car size={22} />
+            Carro
+          </button>
+          <button
+            type="button"
+            className={type === 'motorcycle' ? 'selected' : ''}
+            onClick={() => setType('motorcycle')}
+            aria-pressed={type === 'motorcycle'}
+          >
+            <Bike size={22} />
+            Moto
+          </button>
+        </div>
+      </fieldset>
       <label htmlFor={`${fieldId}-plate`}>Placa del vehículo</label>
       <input
         id={`${fieldId}-plate`}
@@ -252,7 +255,7 @@ function EntryForm({
           </small>
         </div>
       </div>
-      <button className="primary full" disabled={busy}>
+      <button type="submit" className="primary full" disabled={busy}>
         <ArrowDownLeft size={18} />
         Registrar entrada
         <ArrowRight size={18} />
@@ -379,8 +382,10 @@ export default function ParkingApp({
     }
   }, []);
   useEffect(() => {
-    refresh();
-    const a = setInterval(refresh, 15000);
+    void refresh();
+    const a = setInterval(() => {
+      void refresh();
+    }, 15000);
     const b = setInterval(() => setTick(Date.now()), 1000);
     return () => {
       clearInterval(a);
@@ -409,14 +414,14 @@ export default function ParkingApp({
     }
   };
   const enter = (body: Row, form: HTMLFormElement) =>
-    run({ action: 'enter', ...body }, (stay) => {
+    void run({ action: 'enter', ...body }, (stay) => {
       form.reset();
       setEntryModal(false);
       setReceipt({ stay });
       setToast(`Entrada registrada: ${stay.plate}`);
     });
   const getQuote = (stayId: string) =>
-    run({ action: 'quote', stayId }, (q) => {
+    void run({ action: 'quote', stayId }, (q) => {
       setQuote(q);
       setMethod('cash');
       setTendered(String(q.total));
@@ -519,6 +524,7 @@ export default function ParkingApp({
         <nav>
           {nav.map((n) => (
             <button
+              type="button"
               key={n.id}
               className={screen === n.id ? 'active' : ''}
               onClick={() => {
@@ -567,7 +573,12 @@ export default function ParkingApp({
             <span className="live-clock">
               {time(now)} <small>COL</small>
             </span>
-            <button className="icon-button" aria-label="Actualizar datos" onClick={refresh}>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Actualizar datos"
+              onClick={refresh}
+            >
               <RefreshCw size={17} />
             </button>
           </div>
@@ -588,6 +599,7 @@ export default function ParkingApp({
             </div>
             {screen === 'operation' && (
               <button
+                type="button"
                 className="primary"
                 onClick={() => setEntryModal(true)}
                 disabled={!data || busy}
@@ -601,6 +613,7 @@ export default function ParkingApp({
             <div className="error" role="alert">
               <span>{error}</span>
               <button
+                type="button"
                 className="icon-button"
                 aria-label="Cerrar aviso"
                 onClick={() => setError('')}
@@ -616,7 +629,7 @@ export default function ParkingApp({
                 text="Si tarda más de lo esperado, comprueba la conexión y pulsa actualizar."
                 icon={<RefreshCw size={25} />}
               />
-              <button className="secondary center" onClick={refresh}>
+              <button type="button" className="secondary center" onClick={refresh}>
                 Actualizar
               </button>
             </section>
@@ -629,7 +642,7 @@ export default function ParkingApp({
                     <b>La caja está cerrada.</b> Puedes registrar entradas. Para cobrar, abre un
                     turno.
                   </span>
-                  <button onClick={() => setScreen('cash')}>
+                  <button type="button" onClick={() => setScreen('cash')}>
                     Abrir caja
                     <ArrowRight size={15} />
                   </button>
@@ -674,8 +687,7 @@ export default function ParkingApp({
                             <p>Busca una placa para consultar y cobrar la salida.</p>
                           </div>
                           <span className="live-tag">
-                            <i />
-                            En vivo
+                            <i aria-hidden="true" /> En vivo
                           </span>
                         </div>
                         <div className="table-tools">
@@ -695,6 +707,7 @@ export default function ParkingApp({
                               ['motorcycle', 'Motos'],
                             ].map(([v, l]) => (
                               <button
+                                type="button"
                                 key={v}
                                 className={filter === v ? 'selected' : ''}
                                 onClick={() => setFilter(v)}
@@ -757,6 +770,7 @@ export default function ParkingApp({
                                       </td>
                                       <td>
                                         <button
+                                          type="button"
                                           className="text-button"
                                           disabled={busy}
                                           onClick={() => getQuote(s.id)}
@@ -795,7 +809,11 @@ export default function ParkingApp({
                             <h2>Últimas salidas</h2>
                             <p>Pagos confirmados y comprobantes disponibles.</p>
                           </div>
-                          <button className="text-button" onClick={() => setScreen('reports')}>
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() => setScreen('reports')}
+                          >
                             Ver reportes
                             <ArrowRight size={16} />
                           </button>
@@ -821,6 +839,7 @@ export default function ParkingApp({
                                     <td className="money">{cop(p.total)}</td>
                                     <td>
                                       <button
+                                        type="button"
                                         className="icon-button"
                                         aria-label={`Ver recibo de ${p.plate}`}
                                         onClick={() => viewReceipt(p.id)}
@@ -903,7 +922,7 @@ export default function ParkingApp({
                           className="stack"
                           onSubmit={(e) => {
                             const v = formValues(e);
-                            run({ action: 'openShift', opening: Number(v.opening) }, () =>
+                            void run({ action: 'openShift', opening: Number(v.opening) }, () =>
                               setToast('Caja abierta. Ya puedes cobrar.'),
                             );
                           }}
@@ -919,7 +938,7 @@ export default function ParkingApp({
                             required
                             placeholder="50000"
                           />
-                          <button className="primary" disabled={busy}>
+                          <button type="submit" className="primary" disabled={busy}>
                             Abrir turno
                             <ArrowRight size={18} />
                           </button>
@@ -937,7 +956,7 @@ export default function ParkingApp({
                             onSubmit={(e) => {
                               const form = e.currentTarget;
                               const v = formValues(e);
-                              run(
+                              void run(
                                 {
                                   action: 'move',
                                   shiftId: data.shift.id,
@@ -975,7 +994,7 @@ export default function ParkingApp({
                               required
                               placeholder="Ej.: retiro para consignación"
                             />
-                            <button className="primary" disabled={busy}>
+                            <button type="submit" className="primary" disabled={busy}>
                               Registrar movimiento
                             </button>
                           </form>
@@ -1015,7 +1034,7 @@ export default function ParkingApp({
                               rows={3}
                               placeholder="Explica cualquier diferencia…"
                             />
-                            <button className="secondary" disabled={busy}>
+                            <button type="submit" className="secondary" disabled={busy}>
                               Revisar cierre
                               <ArrowRight size={17} />
                             </button>
@@ -1129,7 +1148,7 @@ export default function ParkingApp({
                           required
                         />
                       </div>
-                      <button className="primary" disabled={busy}>
+                      <button type="submit" className="primary" disabled={busy}>
                         Consultar
                         <ArrowRight size={17} />
                       </button>
@@ -1164,6 +1183,7 @@ export default function ParkingApp({
                             </p>
                           </div>
                           <button
+                            type="button"
                             className="secondary"
                             disabled={!report.rows.length}
                             onClick={csv}
@@ -1197,6 +1217,7 @@ export default function ParkingApp({
                                     <td className="money">{cop(r.total)}</td>
                                     <td>
                                       <button
+                                        type="button"
                                         className="icon-button"
                                         aria-label={`Recibo ${r.plate}`}
                                         onClick={() => viewReceipt(r.id)}
@@ -1234,7 +1255,7 @@ export default function ParkingApp({
                   config={data.config}
                   busy={busy}
                   onSave={(config) =>
-                    run({ action: 'settings', config }, () =>
+                    void run({ action: 'settings', config }, () =>
                       setToast('Configuración guardada. Aplica a las nuevas entradas.'),
                     )
                   }
@@ -1293,11 +1314,14 @@ export default function ParkingApp({
             className="stack"
             onSubmit={(e) => {
               e.preventDefault();
-              run({ action: 'pay', quoteId: quote.id, method, tendered: Number(tendered) }, (r) => {
-                setQuote(null);
-                setReceipt(r);
-                setToast('Pago confirmado. Salida registrada.');
-              });
+              void run(
+                { action: 'pay', quoteId: quote.id, method, tendered: Number(tendered) },
+                (r) => {
+                  setQuote(null);
+                  setReceipt(r);
+                  setToast('Pago confirmado. Salida registrada.');
+                },
+              );
             }}
           >
             <label htmlFor="payment-method">Medio de pago</label>
@@ -1333,6 +1357,7 @@ export default function ParkingApp({
             )}
             {!data.shift && <p className="negative">Abre caja para poder cobrar.</p>}
             <button
+              type="submit"
               className="primary full"
               disabled={
                 busy ||
@@ -1364,7 +1389,11 @@ export default function ParkingApp({
           onClose={() => setReceipt(null)}
         >
           <Receipt value={receipt} />
-          <button className="primary full print-button" onClick={() => window.print()}>
+          <button
+            type="button"
+            className="primary full print-button"
+            onClick={() => window.print()}
+          >
             <Printer size={18} />
             Imprimir comprobante
           </button>
@@ -1392,10 +1421,11 @@ export default function ParkingApp({
               registrado mientras contabas.
             </p>
             <button
+              type="button"
               className="primary"
               disabled={busy}
               onClick={() =>
-                run({ action: 'closeShift', ...closeConfirm }, (s) => {
+                void run({ action: 'closeShift', ...closeConfirm }, (s) => {
                   setCloseConfirm(null);
                   setToast(`Caja cerrada. Diferencia: ${cop(s.difference)}`);
                 })
@@ -1542,7 +1572,7 @@ function SettingsForm({
       </div>
       <div className="settings-save">
         <p>Los cambios aplican únicamente a entradas nuevas.</p>
-        <button className="primary" disabled={busy}>
+        <button type="submit" className="primary" disabled={busy}>
           <Check size={17} />
           Guardar configuración
         </button>

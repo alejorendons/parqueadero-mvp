@@ -10,8 +10,10 @@ import {
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
+import { fileURLToPath } from "node:url";
 import { JSONRPCClient } from "json-rpc-2.0";
 import { createPreviewBinding } from "./host-binding.mjs";
+import { preparePreviewWorkspace } from "./workspace.mjs";
 import {
   driverMessageSchema,
   grantsSchema,
@@ -20,7 +22,7 @@ import {
 
 // The agent starts this script through its terminal tool after creating a local
 // Site and selecting connector read actions, following references/app-integrations.md#local-preview:
-//   node <site-directory>/scripts/connector-preview/connector-preview-session.mjs <site-directory> <grants.json>
+//   node <site-directory>/scripts/connector-preview/connector-preview-session.mjs <site-directory> <site-directory>/.sites-runtime/connector-preview-grants.json
 // During the agent development loop, the Site preview writes requests into a shared folder.
 // This script checks each request with host-binding.mjs, then asks the agent over
 // stdout to call the connector. The agent returns the tool result through stdin,
@@ -41,6 +43,11 @@ if (positionals.length !== 2 || !path.isAbsolute(project)) {
     "Usage: node connector-preview-session.mjs <absolute-site-directory> <grants.json> [--concurrency 64] [--timeout-ms 120000] [--lifetime-ms N] [--max-calls N]",
   );
 }
+const workspace = await preparePreviewWorkspace(
+  fileURLToPath(new URL("../../", import.meta.url)),
+  project,
+  grantsFile,
+);
 const limits = sessionOptionsSchema.parse(
   Object.fromEntries(
     [
@@ -54,9 +61,9 @@ const limits = sessionOptionsSchema.parse(
   ),
 );
 const grants = grantsSchema.parse(
-  JSON.parse(await readFile(grantsFile, "utf8")),
+  JSON.parse(await readFile(workspace.grantsFile, "utf8")),
 );
-const root = path.join(project, ".sites-runtime", "connector-preview");
+const root = workspace.root;
 const id = randomUUID();
 const directory = path.join(root, id);
 const descriptor = path.join(root, "session.json");
@@ -97,7 +104,7 @@ const binding = createPreviewBinding({
     },
   })),
 });
-await mkdir(directory, { recursive: true, mode: 0o700 });
+await mkdir(directory, { mode: 0o700 });
 try {
   // One owner per project. A crashed session must be explicitly cleaned up;
   // never silently take over another agent's connector session.
@@ -122,7 +129,7 @@ async function serve(name) {
   try {
     const body = await readFile(path.join(directory, name), "utf8");
     const response = await binding.fetch(
-      new Request("http://preview/invoke", { method: "POST", body }),
+      new Request("https://preview.invalid/invoke", { method: "POST", body }),
     );
     if (!closing) {
       const output = path.join(

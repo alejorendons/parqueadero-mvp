@@ -10,7 +10,7 @@ const localEmail = "seedy@sites.test";
 const localFullName = "Seedy";
 const localCookieName = "__sites_local_auth";
 const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-const localAddresses = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+const localAddresses = new Set(["127.0.0.1", "::1"]);
 const authPaths = new Set([
   "/signin-with-chatgpt",
   "/signout-with-chatgpt",
@@ -72,7 +72,7 @@ export function sites({ mockAuth = true } = {}): Plugin {
           .toLowerCase();
         if (
           !localHosts.has(hostname) ||
-          !localAddresses.has(request.socket.remoteAddress ?? "") ||
+          !localAddresses.has((request.socket.remoteAddress ?? "").replace(/^::ffff:/i, "")) ||
           url.origin !== authority.origin
         ) {
           if (authPaths.has(url.pathname)) respond(response, 403);

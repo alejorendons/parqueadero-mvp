@@ -1581,3 +1581,14 @@ textarea::placeholder {
     margin: 10mm;
   }
 }
+.vehicle-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.vehicle-fieldset legend {
+  font-size: 11px;
+  font-weight: 600;
+  color: #65745d;
+  margin-bottom: 7px;
+}

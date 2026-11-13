@@ -40,7 +40,9 @@ Si `sonar` aparece omitido, revisa la variable `SONAR_ENABLED`. Si hay error de 
 
 ## 4. Cobertura honesta
 
-`npm test` prueba el cálculo de tarifas y el servicio contra SQLite con las migraciones reales. `c8` produce LCOV para dominio y servicio. Sonar analiza también la interfaz, API y esquema: esas líneas pueden aparecer sin cobertura. La cobertura del núcleo **no equivale** a cobertura de toda la aplicación. No se han excluido las pantallas para inflar el resultado.
+`npm test` prueba el cálculo de tarifas y el servicio contra SQLite con las migraciones reales, además de los límites de archivos de la vista previa. `c8` produce LCOV para el dominio, el servicio y esa utilidad de seguridad. Sonar analiza también la interfaz, API, componentes y herramientas versionadas: esas líneas pueden aparecer sin cobertura. La cobertura del núcleo **no equivale** a cobertura de toda la aplicación. No se han excluido las pantallas para inflar el resultado.
+
+En la versión actual de Cloud, el alcance se reconoce sobre el repositorio completo y las rutas `tests/` se identifican automáticamente. Las propiedades de alcance antiguas se pasan únicamente al paso de SonarQube Server. Todas las acciones de GitHub están fijadas por SHA completo y la instalación de verificación usa `--ignore-scripts`. La revisión de las herramientas está documentada en [Seguridad de desarrollo](SEGURIDAD-DESARROLLO.md).
 
 La revisión del navegador es una prueba de aceptación manual y no añade cobertura a LCOV. La preparación del repo no implica que el Quality Gate ya haya aprobado: eso se comprueba con un análisis real conectado a tu proyecto.
 
