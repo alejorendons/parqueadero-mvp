@@ -1,4 +1,24 @@
 import { normalizePlate, calculateCharge, bogotaDay, defaultSettings } from '../domain/billing.mjs';
+import { settingsSchema, staySchema } from '../domain/contracts.mjs';
+import type {
+  BusinessSettings,
+  Stay,
+  CurrentShift,
+  Shift,
+  Movement,
+  Payment,
+  StoredQuote,
+  PaymentRow,
+  PaymentSummary,
+  ShiftSummary,
+  ParkingState,
+  Report,
+  EntryInput,
+  PayInput,
+  OpenShiftInput,
+  MoveInput,
+  CloseShiftInput,
+} from '../domain/parking-types';
 export class BusinessError extends Error {
   status: number;
   constructor(message: string, status = 400) {
@@ -6,7 +26,8 @@ export class BusinessError extends Error {
     this.status = status;
   }
 }
-type Row = Record<string, any>;
+type StoredStay = Omit<Stay, 'rate' | 'business'> & { rate: string; business: string };
+type SqlValue = string | number | null;
 const uuid = () => crypto.randomUUID();
 const money = (value: unknown, label = 'Valor') => {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > 100000000)
@@ -18,48 +39,88 @@ const string = (value: unknown, max: number, required = false) => {
     throw new BusinessError('Completa los campos requeridos y respeta su longitud máxima.');
   return value.trim();
 };
-const decode = (s: Row): Row => ({
-  ...s,
-  rate: JSON.parse(s.rate),
-  business: JSON.parse(s.business),
-});
+const decode = (s: StoredStay): Stay =>
+  staySchema.parse({
+    ...s,
+    rate: JSON.parse(s.rate),
+    business: JSON.parse(s.business),
+  });
 const expectedSql = `(opening + COALESCE((SELECT SUM(total) FROM payments WHERE shift_id=shifts.id AND method='cash'),0) + COALESCE((SELECT SUM(amount) FROM movements WHERE shift_id=shifts.id),0))`;
 export function parkingService(db: D1Database, actor: string, clock = Date.now) {
-  const stmt = (sql: string, ...args: any[]) => db.prepare(sql).bind(...args);
-  const all = async (sql: string, ...args: any[]) => (await stmt(sql, ...args).all<Row>()).results;
-  const first = (sql: string, ...args: any[]) => stmt(sql, ...args).first<Row>();
+  const stmt = (sql: string, ...args: SqlValue[]) => db.prepare(sql).bind(...args);
+  const all = async <T>(sql: string, ...args: SqlValue[]) =>
+    (await stmt(sql, ...args).all<T>()).results;
+  const first = <T>(sql: string, ...args: SqlValue[]) => stmt(sql, ...args).first<T>();
   const audit = (action: string, target: string, at: number) =>
     stmt('INSERT INTO audit VALUES (?,?,?,?,?)', uuid(), at, actor, action, target);
   const getSettings = async () => {
-    const s = await first('SELECT data FROM settings WHERE id=1');
-    return s ? JSON.parse(s.data) : structuredClone(defaultSettings);
+    const s = await first<{ data: string }>('SELECT data FROM settings WHERE id=1');
+    return settingsSchema.parse(s ? JSON.parse(s.data) : structuredClone(defaultSettings));
   };
   const getStay = async (id: string) => {
-    const s = await first('SELECT * FROM stays WHERE id=?', id);
+    const s = await first<StoredStay>('SELECT * FROM stays WHERE id=?', id);
     if (!s) throw new BusinessError('Estadía no encontrada.', 404);
     return decode(s);
   };
   const shift = () =>
-    first(`SELECT *, ${expectedSql} AS current_expected FROM shifts WHERE closed_at IS NULL`);
+    first<CurrentShift>(
+      `SELECT *, ${expectedSql} AS current_expected FROM shifts WHERE closed_at IS NULL`,
+    );
+  const receipt = async (id: string) => {
+    const payment = await first<Payment>('SELECT * FROM payments WHERE id=?', id);
+    if (!payment) throw new BusinessError('Pago no encontrado.', 404);
+    const quote = await first<StoredQuote>('SELECT * FROM quotes WHERE id=?', payment.quote_id);
+    if (!quote) throw new BusinessError('Liquidación del pago no encontrada.', 500);
+    return { payment, stay: await getStay(payment.stay_id), quote };
+  };
+  const movementReplay = async (id: string, shiftId: string, amount: number, reason: string) => {
+    const existing = await first<Movement>('SELECT * FROM movements WHERE id=?', id);
+    if (!existing) return false;
+    if (existing.shift_id !== shiftId || existing.amount !== amount || existing.reason !== reason)
+      throw new BusinessError('Este identificador ya se usó en otro movimiento.', 409);
+    return true;
+  };
   return {
-    async state() {
+    async state(): Promise<ParkingState> {
       const now = clock();
-      const [config, active, currentShift, recent, today, shifts, movements] = await Promise.all([
-        getSettings(),
-        all('SELECT * FROM stays WHERE exit_at IS NULL ORDER BY entry_at DESC'),
-        shift(),
-        all(
-          'SELECT p.*,s.plate,s.type,s.entry_at,s.exit_at FROM payments p JOIN stays s ON s.id=p.stay_id ORDER BY p.paid_at DESC LIMIT 15',
-        ),
-        all(
-          'SELECT method,COUNT(*) AS count,SUM(total) AS total FROM payments WHERE day=? GROUP BY method',
-          bogotaDay(now),
-        ),
-        all('SELECT * FROM shifts ORDER BY opened_at DESC LIMIT 15'),
-        all(
-          'SELECT * FROM movements WHERE shift_id IN (SELECT id FROM shifts WHERE closed_at IS NULL) ORDER BY at DESC',
-        ),
-      ]);
+      const [config, active, currentShift, recent, today, shifts, movements, shiftPayments] =
+        await Promise.all([
+          getSettings(),
+          all<StoredStay>('SELECT * FROM stays WHERE exit_at IS NULL ORDER BY entry_at DESC'),
+          shift(),
+          all<PaymentRow>(
+            'SELECT p.*,s.plate,s.type,s.entry_at,s.exit_at FROM payments p JOIN stays s ON s.id=p.stay_id ORDER BY p.paid_at DESC LIMIT 15',
+          ),
+          all<PaymentSummary>(
+            'SELECT method,COUNT(*) AS count,SUM(total) AS total FROM payments WHERE day=? GROUP BY method',
+            bogotaDay(now),
+          ),
+          all<Shift>('SELECT * FROM shifts ORDER BY opened_at DESC LIMIT 15'),
+          all<Movement>(
+            'SELECT * FROM movements WHERE shift_id IN (SELECT id FROM shifts WHERE closed_at IS NULL) ORDER BY at DESC',
+          ),
+          all<PaymentSummary>(
+            'SELECT method,COUNT(*) AS count,SUM(total) AS total FROM payments WHERE shift_id IN (SELECT id FROM shifts WHERE closed_at IS NULL) GROUP BY method',
+          ),
+        ]);
+      const shiftSummary: ShiftSummary = {
+        cash: 0,
+        transfer: 0,
+        card: 0,
+        total: 0,
+        paymentCount: 0,
+        inflows: 0,
+        outflows: 0,
+      };
+      for (const p of shiftPayments) {
+        shiftSummary[p.method] += p.total;
+        shiftSummary.total += p.total;
+        shiftSummary.paymentCount += p.count;
+      }
+      for (const m of movements) {
+        if (m.amount > 0) shiftSummary.inflows += m.amount;
+        else shiftSummary.outflows -= m.amount;
+      }
       return {
         now,
         config,
@@ -72,9 +133,10 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
         today,
         shifts,
         movements,
+        shiftSummary,
       };
     },
-    async saveSettings(data: Row) {
+    async saveSettings(data: BusinessSettings) {
       const clean = {
         name: string(data.name, 100, true),
         city: string(data.city, 100, true),
@@ -83,9 +145,9 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
         policy: string(data.policy, 100),
         insurer: string(data.insurer, 120),
         claims: string(data.claims, 500),
-        rates: {} as Row,
+        rates: {} as BusinessSettings['rates'],
       };
-      for (const type of ['car', 'motorcycle']) {
+      for (const type of ['car', 'motorcycle'] as const) {
         const rate = data.rates?.[type];
         try {
           calculateCharge(0, 1, rate);
@@ -111,7 +173,7 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
       ]);
       return clean;
     },
-    async enter(data: Row) {
+    async enter(data: EntryInput) {
       if (!['car', 'motorcycle'].includes(data.type))
         throw new BusinessError('Selecciona carro o moto.');
       let plate;
@@ -163,13 +225,13 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
       ).run();
       return { id: quoteId, stay, quotedAt: now, expiresAt: now + 60000, ...charge };
     },
-    async pay(data: Row) {
+    async pay(data: PayInput) {
       const quoteId = string(data.quoteId, 60, true);
-      const existing = await first('SELECT * FROM payments WHERE quote_id=?', quoteId);
-      if (existing) return this.receipt(existing.id);
+      const existing = await first<Payment>('SELECT * FROM payments WHERE quote_id=?', quoteId);
+      if (existing) return receipt(existing.id);
       if (!['cash', 'transfer', 'card'].includes(data.method))
         throw new BusinessError('Selecciona un medio de pago válido.');
-      const quote = await first('SELECT * FROM quotes WHERE id=?', quoteId);
+      const quote = await first<StoredQuote>('SELECT * FROM quotes WHERE id=?', quoteId);
       if (!quote) throw new BusinessError('Consulta de nuevo el cobro.', 404);
       const now = clock();
       if (now > quote.expires_at)
@@ -201,8 +263,8 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
           audit('stay.paid_and_exited', quote.stay_id, now),
         ]);
       } catch (e) {
-        const retry = await first('SELECT * FROM payments WHERE quote_id=?', quoteId);
-        if (retry) return this.receipt(retry.id);
+        const retry = await first<Payment>('SELECT * FROM payments WHERE quote_id=?', quoteId);
+        if (retry) return receipt(retry.id);
         if (/UNIQUE|closed_shift|inactive_stay/i.test(String(e)))
           throw new BusinessError(
             'La estadía ya fue pagada o la caja se cerró. Actualiza la pantalla.',
@@ -210,18 +272,10 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
           );
         throw e;
       }
-      return this.receipt(id);
+      return receipt(id);
     },
-    async receipt(id: string) {
-      const payment = await first('SELECT * FROM payments WHERE id=?', id);
-      if (!payment) throw new BusinessError('Pago no encontrado.', 404);
-      return {
-        payment,
-        stay: await getStay(payment.stay_id),
-        quote: await first('SELECT * FROM quotes WHERE id=?', payment.quote_id),
-      };
-    },
-    async openShift(data: Row) {
+    receipt,
+    async openShift(data: OpenShiftInput) {
       const opening = money(data.opening, 'Base de caja');
       const now = clock();
       const id = uuid();
@@ -243,7 +297,7 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
       }
       return shift();
     },
-    async move(data: Row) {
+    async move(data: MoveInput) {
       const amount = money(data.amount);
       if (!amount) throw new BusinessError('El movimiento debe ser mayor que cero.');
       if (!['in', 'out'].includes(data.direction))
@@ -251,7 +305,9 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
       const reason = string(data.reason, 200, true);
       const shiftId = string(data.shiftId, 60, true);
       const now = clock();
-      const id = uuid();
+      const id = data.requestId ?? uuid();
+      const signed = data.direction === 'out' ? -amount : amount;
+      if (data.requestId && (await movementReplay(id, shiftId, signed, reason))) return shift();
       try {
         await db.batch([
           stmt(
@@ -259,13 +315,16 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
             id,
             shiftId,
             now,
-            data.direction === 'out' ? -amount : amount,
+            signed,
             reason,
             actor,
           ),
           audit('cash.movement', id, now),
         ]);
       } catch (e) {
+        if (data.requestId && /UNIQUE/i.test(String(e))) {
+          if (await movementReplay(id, shiftId, signed, reason)) return shift();
+        }
         if (/closed_shift|negative_cash|FOREIGN KEY/i.test(String(e)))
           throw new BusinessError(
             'La caja se cerró o el retiro supera el efectivo disponible.',
@@ -275,7 +334,7 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
       }
       return shift();
     },
-    async closeShift(data: Row) {
+    async closeShift(data: CloseShiftInput) {
       const id = string(data.shiftId, 60, true);
       const counted = money(data.counted, 'Efectivo contado');
       const note = string(data.note, 300);
@@ -291,21 +350,19 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
           id,
         ),
         stmt(
-          'INSERT INTO audit SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM shifts WHERE id=? AND closed_at=?)',
+          'INSERT INTO audit SELECT ?,?,?,?,? WHERE changes()=1',
           uuid(),
           now,
           actor,
           'shift.closed',
           id,
-          id,
-          now,
         ),
       ]);
       if (!result[0].results.length)
         throw new BusinessError('Esta caja ya fue cerrada. Actualiza la pantalla.', 409);
-      return result[0].results[0];
+      return result[0].results[0] as Shift;
     },
-    async report(from: string, to: string) {
+    async report(from: string, to: string): Promise<Report> {
       const valid = (s: string) =>
         /^\d{4}-\d{2}-\d{2}$/.test(s) &&
         !Number.isNaN(Date.parse(s)) &&
@@ -317,13 +374,13 @@ export function parkingService(db: D1Database, actor: string, clock = Date.now) 
         Date.parse(to) - Date.parse(from) > 92 * 86400000
       )
         throw new BusinessError('Elige un rango válido de máximo 93 días.');
-      const rows = await all(
+      const rows = await all<PaymentRow>(
         'SELECT p.*,s.plate,s.type,s.entry_at,s.exit_at FROM payments p JOIN stays s ON s.id=p.stay_id WHERE p.day>=? AND p.day<=? ORDER BY p.paid_at DESC',
         from,
         to,
       );
       const totals = rows.reduce(
-        (a: Row, r) => ({ ...a, total: a.total + r.total, [r.method]: a[r.method] + r.total }),
+        (a, r) => ({ ...a, total: a.total + r.total, [r.method]: a[r.method] + r.total }),
         { total: 0, cash: 0, transfer: 0, card: 0 },
       );
       return { from, to, rows, totals };

@@ -11,7 +11,7 @@ Requisitos: Node.js 22.17 o posterior de la rama 22, npm y Git. No hace falta in
 ```sh
 git clone https://github.com/alejorendons/parqueadero-mvp.git
 cd parqueadero-mvp
-npm ci
+npm ci --ignore-scripts
 npm run build
 ```
 
@@ -28,7 +28,7 @@ La migración inicial se aplica **una vez por base nueva**. No repitas ese coman
 
 ## Primer recorrido
 
-1. Abre **Configuración** y completa los datos reales del negocio y tarifas.
+1. Abre **Tarifas y datos** y completa los datos reales del negocio y tarifas.
 2. En **Caja**, abre un turno con el efectivo disponible para dar cambio.
 3. En **Operación**, elige carro o moto, ingresa la placa y describe el estado del vehículo. Imprime su recibo de entrada.
 4. Cuando regrese el cliente, busca la placa y pulsa **Cobrar**. Verifica el total y el medio, confirma pago y salida, e imprime el comprobante.
@@ -42,15 +42,17 @@ Una cotización reserva el valor durante 60 segundos para pagar. Si vence, se ac
 
 ```sh
 npm run typecheck
+npm run lint
 npm test
 npm run build
 ```
 
-Las pruebas ejercitan el dominio y los casos de uso sobre SQLite con las migraciones reales. Generan `coverage/lcov.info`. GitHub Actions repite la verificación y tiene un trabajo de SonarQube activable con variables del repositorio y un secreto `SONAR_TOKEN`.
+Las pruebas ejercitan el dominio y los casos de uso sobre SQLite con las migraciones reales (`test:core`), y los recorridos de interfaz y cliente HTTP con React Testing Library/Vitest (`test:web`). Generan `coverage/core/lcov.info` y `coverage/web/lcov.info`. GitHub Actions repite la verificación y envía ambos reportes a SonarQube.
 
 - [Conectar SonarQube Server o Cloud](docs/SONARQUBE.md)
 - [Guía de pruebas y aceptación](docs/PRUEBAS.md)
 - [Alcance, reglas y arquitectura](docs/ARQUITECTURA.md)
+- [Revisión de producto, mapa de integraciones y decisiones](docs/REVISION-PRODUCTO.md)
 - [Guía de despliegue y operación](docs/DESPLIEGUE.md)
 
 El flujo de análisis está preparado; la aprobación del Quality Gate se conoce solo después de ejecutar Sonar contra tu proyecto. La interfaz no está excluida de la cobertura de Sonar para inflar el porcentaje.

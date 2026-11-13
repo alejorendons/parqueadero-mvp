@@ -23,12 +23,15 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run typecheck
+      - run: npm run lint
       - run: npm test
       - run: npm run build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage
-          path: coverage/lcov.info
+          path: |
+            coverage/core/lcov.info
+            coverage/web/lcov.info
           retention-days: 7
   sonar:
     needs: verify
@@ -53,7 +56,7 @@ jobs:
         with:
           args: >-
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY || 'parqueadero-mvp' }}
-            -Dsonar.sources=app,application,domain,db,components,hooks,lib,scripts,worker
+            -Dsonar.sources=app,application,domain,db,lib,scripts,worker
             -Dsonar.tests=tests
             -Dsonar.qualitygate.wait=true
       - name: Analizar en SonarQube Cloud

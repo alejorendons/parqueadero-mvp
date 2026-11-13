@@ -176,3 +176,36 @@ test('una falla al final del batch revierte tanto el pago como la salida', async
   const paid = await svc.pay({ quoteId: q.id, method: 'transfer' });
   assert.equal(paid.payment.total, 4000);
 });
+
+test('reintentar un movimiento, incluso concurrentemente, solo afecta una vez al saldo y auditoría', async (t) => {
+  const { svc, db } = setup(t);
+  const shift = await svc.openShift({ opening: 50000 });
+  const input = {
+    shiftId: shift.id,
+    direction: 'out',
+    amount: 10000,
+    reason: 'Consignación',
+    requestId: crypto.randomUUID(),
+  };
+  await Promise.all([svc.move(input), svc.move(input)]);
+  await svc.move(input);
+  assert.equal((await svc.state()).shift.current_expected, 40000);
+  assert.equal((await svc.state()).movements.length, 1);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='cash.movement'").first()).n,
+    1,
+  );
+  await assert.rejects(svc.move({ ...input, amount: 9000 }), /identificador/);
+});
+
+test('cerrar dos veces en el mismo milisegundo no duplica la auditoría de cierre', async (t) => {
+  const { svc, db } = setup(t);
+  const shift = await svc.openShift({ opening: 0 });
+  const input = { shiftId: shift.id, counted: 0, note: '' };
+  await svc.closeShift(input);
+  await assert.rejects(svc.closeShift(input), /ya fue cerrada/);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='shift.closed'").first()).n,
+    1,
+  );
+});

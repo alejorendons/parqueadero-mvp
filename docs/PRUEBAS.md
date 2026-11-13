@@ -5,8 +5,9 @@ Ejecuta los casos manuales solo en desarrollo o en un parqueadero de prueba. Los
 ## Automatizadas
 
 ```sh
-npm ci
+npm ci --ignore-scripts
 npm run typecheck
+npm run lint
 npm test
 npm run build
 ```
@@ -15,11 +16,13 @@ Las pruebas usan una base SQLite nueva en memoria por caso y las migraciones ver
 
 Casos cubiertos: placas y normalización; límites de hora exacta y fracción; tolerancia; bloques por minuto; cambio de tarifa conservando estadías previas; caja cerrada; importes inválidos; doble pago e idempotencia; cotización expirada; pagos concurrentes de la misma estadía; movimientos sobre turno cerrado; retiros superiores al saldo; cierre y diferencia; separación de efectivo y pagos digitales; fechas de Colombia y reportes.
 
-El reporte de cobertura queda en `coverage/lcov.info`, generado localmente y en CI. No se versiona.
+La cobertura del núcleo queda en `coverage/core/lcov.info`; la de interfaz y cliente HTTP, en `coverage/web/lcov.info`. Ambas se generan localmente y en CI, sin versionarse.
+
+Los recorridos de interfaz prueban entrada de motos, validación de placa y duplicados, búsqueda y filtros, pago con cambio, verificación manual digital, cotización vencida, reimpresión, reintento de movimiento, revisión/cierre, consultas y CSV, paginación, conservación y descarte de tarifas, sesión vencida, recuperación de conexión y descarte de respuestas obsoletas. Son pruebas DOM en jsdom: se complementan con revisión en un navegador real.
 
 ## Recorrido manual
 
-1. En Configuración, conserva los ejemplos: carro $4.000/hora y moto $2.000/hora, tolerancia cero.
+1. En Tarifas y datos, conserva los ejemplos: carro $4.000/hora y moto $2.000/hora, tolerancia cero.
 2. Abre caja con $50.000. Intenta abrir otra: debe rechazarla.
 3. Registra `TST123` como carro, observación `Vehículo ficticio; prueba local`. Comprueba recibo con placa, hora y tarifa.
 4. Repite esa entrada: debe rechazar la placa duplicada y conservar una sola estadía.
@@ -49,4 +52,4 @@ El reporte de cobertura queda en `coverage/lcov.info`, generado localmente y en 
 
 El 13 de noviembre de 2026 se ejecutaron las pruebas del núcleo, comprobación de tipos y compilación. En un navegador local se recorrieron apertura con $50.000, entrada ficticia `TST123`, pago de $4.000 con $10.000 recibidos y $6.000 de cambio, reporte y descarga CSV, y cierre de $54.000 con diferencia cero. Se inspeccionó la vista móvil de 390 px sin desbordamiento horizontal de la página.
 
-Pendiente antes del uso real: ensayo con la impresora del negocio, acceso desde los dispositivos que operarán, política de respaldos y restauración, verificación de datos/tarifas reales y análisis conectado de SonarQube.
+Pendiente antes del uso real: ensayo con la impresora del negocio, acceso desde los dispositivos que operarán, política de respaldos y restauración y verificación de datos/tarifas reales. SonarQube se comprueba en cada ejecución conectada de Actions.

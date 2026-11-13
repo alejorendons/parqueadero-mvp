@@ -1,6 +1,6 @@
 # Conexión con SonarQube
 
-El repositorio incluye `sonar-project.properties`, pruebas con salida `coverage/lcov.info` y `.github/workflows/quality.yml`. No necesita subir `node_modules`, `coverage`, `dist` ni bases locales para ser analizado: GitHub Actions instala, verifica, prueba y genera cobertura desde el código versionado.
+El repositorio incluye `sonar-project.properties`, pruebas con salida `coverage/core/lcov.info` y `coverage/web/lcov.info`, y `.github/workflows/quality.yml`. No necesita subir `node_modules`, `coverage`, `dist` ni bases locales para ser analizado: GitHub Actions instala, verifica, prueba y genera cobertura desde el código versionado.
 
 ## 1. Elegir Server o Cloud
 
@@ -40,7 +40,7 @@ Si `sonar` aparece omitido, revisa la variable `SONAR_ENABLED`. Si hay error de 
 
 ## 4. Cobertura honesta
 
-`npm test` prueba el cálculo de tarifas y el servicio contra SQLite con las migraciones reales, además de los límites de archivos y el ciclo de arranque/cierre de la vista previa. `c8` produce LCOV para el dominio, el servicio y esas herramientas de seguridad. Sonar analiza también la interfaz, API, componentes y herramientas versionadas: esas líneas pueden aparecer sin cobertura. La cobertura del núcleo **no equivale** a cobertura de toda la aplicación. No se han excluido las pantallas para inflar el resultado.
+`npm test` ejecuta dos grupos. `test:core` prueba tarifas, servicio, contratos y límites HTTP sobre SQLite real, más el ciclo y límites de la vista previa; `c8` genera su LCOV. `test:web` prueba recorridos de operación, caja, reportes, tarifas y errores con React Testing Library; Vitest genera un segundo LCOV para los módulos de interfaz y el cliente HTTP. Actions conserva la estructura de ambas carpetas al transferirlos al análisis. Sonar también considera rutas y herramientas sin cobertura: el porcentaje del núcleo **no equivale** a toda la aplicación. No se excluyen pantallas para inflar el resultado.
 
 En la versión actual de Cloud, el alcance se reconoce sobre el repositorio completo y las rutas `tests/` se identifican automáticamente. Las propiedades de alcance antiguas se pasan únicamente al paso de SonarQube Server. Todas las acciones de GitHub están fijadas por SHA completo y la instalación de verificación usa `--ignore-scripts`. La revisión de las herramientas está documentada en [Seguridad de desarrollo](SEGURIDAD-DESARROLLO.md).
 
