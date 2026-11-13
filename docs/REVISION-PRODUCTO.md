@@ -72,10 +72,12 @@ Se priorizan mejoras del trabajo actual. No se modifican tarifas reales, histori
 
 ## Validación y límites
 
-Se añadieron pruebas de contrato y límite HTTP, repetición concurrente de movimientos, auditoría única de cierre y recorridos DOM del producto. `npm test` ejecuta 33 casos de núcleo/SQLite/herramientas y 22 de interfaz/cliente HTTP. También se ejecutan tipos, ESLint y compilación. Los reportes LCOV de ambos grupos se envían a Sonar, sin excluir las pantallas.
+Se añadieron pruebas de contrato y límite HTTP, repetición concurrente de movimientos, auditoría única de cierre, compatibilidad del protocolo de conectores y recorridos DOM del producto. `npm test` ejecuta 34 casos de núcleo/SQLite/herramientas y 22 de interfaz/cliente HTTP. También se ejecutan tipos, ESLint, auditoría de dependencias y compilación. Los reportes LCOV de ambos grupos se envían a Sonar, sin excluir las pantallas.
 
 La aceptación en navegador local recorrió entrada, pago con cambio, comprobante, cierre y consulta del reporte con registros ficticios. Se revisaron escritorio y un viewport de 390 × 844, con tabla de estadías y tarifas sin desbordamiento de página, controles etiquetados y botones con tipo explícito. No se detectaron errores de consola durante ese recorrido. La revisión DOM y manual no sustituye una auditoría completa con tecnologías de asistencia.
 
 Integraciones verificadas: identidad del alojamiento y rechazo de identidad falsificada en desarrollo; API HTTP con sesión, caché y origen; persistencia local del Worker y D1; migraciones reales en SQLite; ciclo y límites del puente opcional de vista previa. GitHub Actions y Sonar verifican la versión subida. No se han integrado banco, datáfono, facturación o proveedor LLM.
 
 Antes de operación real quedan roles de empleados y permisos por acción, respaldos/restauración ensayados, datos/tarifas del establecimiento, prueba con impresora física y validación en los dispositivos del negocio. Anulaciones con auditoría, operación offline e integraciones de cobro requieren diseño propio. Se mantiene un solo parqueadero; no se añade multiempresa.
+
+La auditoría adicional detectó avisos de dependencias que Sonar no sustituye. Se actualizaron Next.js, React/RSC, Zod y Vite a versiones corregidas, junto con dependencias transitivas compatibles. Los avisos moderados restantes de la cadena de herramientas se detallan en [Seguridad de desarrollo](SEGURIDAD-DESARROLLO.md); no se ocultan ni se aplican actualizaciones mayores forzadas para silenciarlos.

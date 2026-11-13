@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const integer = z.number().int().safe();
+const integer = z.int();
 const amount = integer.nonnegative();
 const timestamp = amount;
 export const vehicleTypeSchema = z.enum(['car', 'motorcycle']);
@@ -140,7 +140,7 @@ export const moveInputSchema = z.object({
   direction: z.enum(['in', 'out']),
   amount: amount.min(1).max(100000000),
   reason: z.string().trim().min(1).max(200),
-  requestId: z.string().uuid().optional(),
+  requestId: z.uuid().optional(),
 });
 export const closeShiftInputSchema = z.object({
   shiftId: z.string().min(1).max(60),

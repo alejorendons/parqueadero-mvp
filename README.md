@@ -43,6 +43,7 @@ Una cotización reserva el valor durante 60 segundos para pagar. Si vence, se ac
 ```sh
 npm run typecheck
 npm run lint
+npm run audit:security
 npm test
 npm run build
 ```
@@ -54,6 +55,7 @@ Las pruebas ejercitan el dominio y los casos de uso sobre SQLite con las migraci
 - [Alcance, reglas y arquitectura](docs/ARQUITECTURA.md)
 - [Revisión de producto, mapa de integraciones y decisiones](docs/REVISION-PRODUCTO.md)
 - [Guía de despliegue y operación](docs/DESPLIEGUE.md)
+- [Seguridad y dependencias pendientes](docs/SEGURIDAD-DESARROLLO.md)
 
 El flujo de análisis está preparado; la aprobación del Quality Gate se conoce solo después de ejecutar Sonar contra tu proyecto. La interfaz no está excluida de la cobertura de Sonar para inflar el porcentaje.
 

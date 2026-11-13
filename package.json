@@ -16,16 +16,17 @@
     "typecheck": "tsc --noEmit",
     "test:http": "node scripts/smoke-local.mjs",
     "format:check": "prettier --check app application domain db tests docs README.md .github",
-    "test:core": "c8 --reports-dir=coverage/core --reporter=text --reporter=lcov --include=domain/** --include=application/** --include=app/parking/format.mjs --include=scripts/connector-preview/workspace.mjs --include=scripts/connector-preview/connector-preview-session.mjs node --experimental-strip-types --test tests/*.test.mjs",
-    "test:web": "vitest run --coverage"
+    "test:core": "c8 --reports-dir=coverage/core --reporter=text --reporter=lcov --include=domain/** --include=application/** --include=app/parking/format.mjs --include=scripts/connector-preview/protocol.mjs --include=scripts/connector-preview/workspace.mjs --include=scripts/connector-preview/connector-preview-session.mjs node --experimental-strip-types --test tests/*.test.mjs",
+    "test:web": "vitest run --coverage",
+    "audit:security": "npm audit --audit-level=high"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
-    "lucide-react": "^1.31.0",
-    "next": "16.3.4",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "zod": "^3.25.76"
+    "lucide-react": "1.31.0",
+    "next": "16.4.1",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
@@ -42,23 +43,28 @@
     "c8": "^10.1.3",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.4.1",
     "jsdom": "26.1.0",
     "json-rpc-2.0": "1.7.1",
     "prettier": "^3.10.1",
     "raw-body": "3.0.2",
-    "react-server-dom-webpack": "19.2.6",
+    "react-server-dom-webpack": "19.2.9",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "vinext": "1.0.0-beta.5",
-    "vite": "8.0.13",
+    "vite": "8.1.6",
     "vitest": "5.1.0",
     "wrangler": "4.92.0"
   },
   "type": "module",
   "overrides": {
     "miniflare": {
-      "sharp": "0.35.4"
-    }
+      "sharp": "0.35.5"
+    },
+    "source-map-js": "1.2.2",
+    "baseline-browser-mapping": "2.11.0",
+    "image-size": "2.0.3",
+    "undici": "7.30.1",
+    "ws": "8.21.0"
   }
 }
